@@ -22,7 +22,7 @@ CREATE TABLE coaches (
     specialite VARCHAR(255),
     experience INT DEFAULT 0,
     certifications TEXT,
-    prix_heure DECIMAL DEFAULT 0,
+    prix_heure DECIMAL(10,2) DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -33,7 +33,7 @@ CREATE TABLE disponibilites (
     jour VARCHAR(20) NOT NULL,
     heure_debut TIME NOT NULL,
     heure_fin TIME NOT NULL,
-    FOREIGN KEY (coach_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (coach_id) REFERENCES coaches(id) ON DELETE CASCADE
 );
 
 
