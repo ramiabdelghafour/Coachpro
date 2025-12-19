@@ -1,3 +1,10 @@
+<?php
+include('config/config.php');
+if (isLoggedIn()) {
+    redirectToDashboard();
+}
+?>
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
