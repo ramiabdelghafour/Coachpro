@@ -6,6 +6,7 @@ if (isLoggedIn()) {
 }
 
 $msg = "";
+$msgType = "";
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nom = trim($_POST['nom']);
@@ -16,21 +17,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $role = trim($_POST['role']);
 
     if (!empty($nom) && !empty($prenom) && !empty($email) && !empty($password) && !empty($role)) {
-        $check = mysqli_query($conn, "SELECT * FROM users WHERE email='$email'");
-        if (mysqli_num_rows($check) > 0) {
+        
+        // ✅ SECURE: Check if email exists using prepared statement
+        $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
             $msg = "Cet email est déjà utilisé.";
+            $msgType = "error";
         } else {
+            // Hash password securely
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $query = "INSERT INTO users (nom, prenom, email, telephone, password, role)
-                      VALUES ('$nom', '$prenom', '$email', '$telephone', '$hashed_password', '$role')";
-            if (mysqli_query($conn, $query)) {
+            
+            // ✅ SECURE: Insert user using prepared statement
+            $stmt = $conn->prepare("INSERT INTO users (nom, prenom, email, telephone, password, role) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("ssssss", $nom, $prenom, $email, $telephone, $hashed_password, $role);
+            
+            if ($stmt->execute()) {
                 $msg = "Inscription réussie ! Vous pouvez vous connecter.";
+                $msgType = "success";
             } else {
                 $msg = "Erreur lors de l'inscription.";
+                $msgType = "error";
             }
         }
+        $stmt->close();
     } else {
         $msg = "Veuillez remplir tous les champs.";
+        $msgType = "error";
     }
 }
 ?>
@@ -42,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inscription | CoachPro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -84,6 +101,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             margin-bottom: 10px;
             text-align: center;
             color: #333;
+        }
+
+        .message {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .success-msg {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .error-msg {
+            background: #f8d7da;
+            color: #721c24;
         }
 
         .form-group {
@@ -162,9 +196,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body>
     <div class="register-box">
         <h2>Créer un compte</h2>
-        <p class="subtitle">Rejoignez CoachPro pour vos séances sportives</p>
-        <p><?php echo $msg ?></p>
-
+        <p class="subtitle">Rejoignez CoachPro pour vos séances sportives</p>  
+            <div class="message">
+                <?php echo $msg; ?>
+            </div>
         <form method="POST" id="registerForm">
             <div class="form-group">
                 <label>Nom :</label>
@@ -197,7 +232,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <option value="coach">Coach</option>
                 </select>
             </div>
-            <button type="submit" class="btn">S’inscrire</button>
+            <button type="submit" class="btn">S'inscrire</button>
             <p class="login-link">Déjà un compte ? <a href="login.php">Se connecter</a></p>
         </form>
     </div>
@@ -218,21 +253,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             let valid = true;
 
+            // Email validation
             let emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-            let phoneRegex = /^[0-9]{10}$/;
-            let passwordRegex = /^.{8,}$/;
-
-
             if (!emailRegex.test(email)) {
                 emailError.textContent = "Adresse email invalide.";
                 valid = false;
             }
 
+            // Phone validation (Moroccan format: 10 digits)
+            let phoneRegex = /^(\+212|0)[5-7][0-9]{8}$/;
             if (!phoneRegex.test(phone)) {
-                phoneError.textContent = "Numéro invalide. Format: +2126XXXXXXXX";
+                phoneError.textContent = "Numéro invalide. Format: +2126XXXXXXXX ou 06XXXXXXXX";
                 valid = false;
             }
 
+            // Password validation (8+ chars, 1 uppercase, 1 digit)
+            let passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
             if (!passwordRegex.test(password)) {
                 passwordError.textContent = "Mot de passe faible (8 caractères, 1 majuscule et 1 chiffre).";
                 valid = false;
